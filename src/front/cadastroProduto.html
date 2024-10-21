@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulário de Produto e Lote</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .form-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-title {
+            color: #0d6efd;
+        }
+
+        .form-label {
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background-color: #0d6efd;
+            border: none;
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        .btn-primary:hover {
+            background-color: #0b5ed7;
+        }
+
+        .form-check-label {
+            font-weight: bold;
+        }
+
+        .mb-3 input {
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        #fabricanteFields {
+            margin-top: 20px;
+        }
+
+        /* Esconder campo de novo fabricante por padrão */
+        #novoCnpjField {
+            display: none;
+        }
+
+        /* Estilos para a exibição da resposta */
+        #responseContainer, #errorContainer {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        .response-success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .response-error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .error-message {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        #responseCode {
+            font-weight: bold;
+        }
+    </style>
+    <script>
+        function toggleFabricanteFields() {
+            const novoFabricanteBtn = document.getElementById("novoFabricanteBtn");
+            const fabricanteFields = document.getElementById("fabricanteFields");
+            const cnpjField = document.getElementById("cnpjField");
+            const novoCnpjField = document.getElementById("novoCnpjField");
+
+            const nomeFabricante = document.getElementById("nomeFabricante");
+            const cepFabricante = document.getElementById("cep");
+            const numeroCep = document.getElementById("numero");
+
+            // Se o botão "Cadastrar Novo Fabricante" estiver marcado
+            if (novoFabricanteBtn.checked) {
+                fabricanteFields.style.display = "block"; // Exibir campos de novo fabricante
+                cnpjField.style.display = "none"; // Ocultar CNPJ do fabricante existente
+                novoCnpjField.style.display = "block"; // Mostrar CNPJ do novo fabricante
+
+                nomeFabricante.setAttribute('required', 'required');
+                cepFabricante.setAttribute('required', 'required');
+                numeroCep.setAttribute('required', 'required');
+            } else {
+                fabricanteFields.style.display = "none"; // Ocultar campos de novo fabricante
+                cnpjField.style.display = "block"; // Mostrar CNPJ do fabricante existente
+                novoCnpjField.style.display = "none"; // Ocultar CNPJ do novo fabricante
+
+                nomeFabricante.removeAttribute('required');
+                cepFabricante.removeAttribute('required');
+                numeroCep.removeAttribute('required');
+            }
+        }
+
+        function validarDatas(dataFabricacao, dataValidade) {
+            const hoje = new Date().toISOString().split("T")[0]; // Data de hoje no formato YYYY-MM-DD
+
+            if (dataValidade < dataFabricacao) {
+                return "A data de validade não pode ser antes da data de fabricação.";
+            }
+            if (dataValidade < hoje) {
+                return "A data de validade não pode ser anterior ao dia de hoje.";
+            }
+
+            return null; // Sem erros
+        }
+
+        async function enviarFormulario(event) {
+            event.preventDefault();
+
+            // Coletar os valores do formulário
+            const nomeProduto = document.getElementById('nome').value;
+            const quantidadeProduto = document.getElementById('quantidade').value;
+            const precoProduto = document.getElementById('preco').value;
+            const dataFabricacao = document.getElementById('dataFabricacao').value;
+            const dataValidade = document.getElementById('dataValidade').value;
+            const novoFabricanteBtn = document.getElementById("novoFabricanteBtn").checked;
+
+            // Validação das datas
+            const errorMessage = validarDatas(dataFabricacao, dataValidade);
+            if (errorMessage) {
+                const errorContainer = document.getElementById('errorContainer');
+                errorContainer.textContent = errorMessage;
+                errorContainer.style.display = 'block';
+                return; // Não enviar o formulário se houver erros
+            } else {
+                document.getElementById('errorContainer').style.display = 'none'; // Esconder mensagens de erro se não houver
+            }
+
+            let cnpjFabricante;
+
+            // Se o botão "Cadastrar Novo Fabricante" for marcado, pegar o CNPJ do campo "cnpjFabricanteNovo".
+            // Caso contrário, pegar o CNPJ do campo padrão "cnpjFabricante"
+            if (novoFabricanteBtn) {
+                cnpjFabricante = document.getElementById('cnpjFabricanteNovo').value;
+            } else {
+                cnpjFabricante = document.getElementById('cnpj').value;
+            }
+
+            let tipoTransacao = novoFabricanteBtn ? "fabricanteNovo" : "fabricanteExistente";
+            let nomeFabricante = "";
+            let cepFabricante = "";
+            let numeroCep = "";
+
+            // Se o botão for marcado, os campos adicionais devem ser coletados
+            if (novoFabricanteBtn) {
+                nomeFabricante = document.getElementById('nomeFabricante').value;
+                cepFabricante = document.getElementById('cep').value;
+                numeroCep = document.getElementById('numero').value;
+            }
+
+            // Construir o JSON
+            const dadosProduto = {
+                nomeProduto: nomeProduto,
+                quantidadeProduto: parseInt(quantidadeProduto),
+                precoProduto: parseFloat(precoProduto),
+                dataFabricacao: dataFabricacao,
+                dataValidade: dataValidade,
+                cnpjFabricante: cnpjFabricante,
+                nomeFabricante: nomeFabricante,  // Será vazio se o botão não estiver marcado
+                cepFabricante: cepFabricante,    // Será vazio se o botão não estiver marcado
+                numeroCep: numeroCep,            // Será vazio se o botão não estiver marcado
+                tipoTransacao: tipoTransacao
+            };
+
+            try {
+                // Enviar requisição para a API
+                const response = await fetch('http://localhost:8080/api/cadastroProduto', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(dadosProduto),
+                });
+
+                // Capturar o corpo da resposta como texto
+                const responseBody = await response.text();
+
+                const responseContainer = document.getElementById('responseContainer');
+                const responseCode = document.getElementById('responseCode');
+                const responseMessage = document.getElementById('responseMessage');
+
+                // Configurar a mensagem e o estilo conforme o status
+                if (response.ok) {
+                    responseContainer.classList.remove('response-error');
+                    responseContainer.classList.add('response-success');
+                    responseCode.textContent = `Código de resposta: ${response.status}`;
+                    responseMessage.textContent = `Mensagem: ${responseBody}`;
+                } else {
+                    responseContainer.classList.remove('response-success');
+                    responseContainer.classList.add('response-error');
+                    responseCode.textContent = `Código de resposta: ${response.status}`;
+                    responseMessage.textContent = `Erro: ${responseBody || 'Ocorreu um erro ao processar a solicitação.'}`;
+                }
+
+                responseContainer.style.display = 'block'; // Mostrar o container de resposta
+
+            } catch (error) {
+                const responseContainer = document.getElementById('responseContainer');
+                const responseCode = document.getElementById('responseCode');
+                const responseMessage = document.getElementById('responseMessage');
+
+                responseContainer.classList.remove('response-success');
+                responseContainer.classList.add('response-error');
+                responseCode.textContent = 'Erro:';
+                responseMessage.textContent = 'Erro ao conectar-se à API';
+
+                responseContainer.style.display = 'block'; // Mostrar o container de resposta
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="form-container">
+            <h2 class="text-center mb-4 form-title">Cadastro de Produto</h2>
+            <form onsubmit="enviarFormulario(event)">
+                <!-- Campos do Produto -->
+                <div class="mb-3">
+                    <label for="nome" class="form-label">Nome do Produto</label>
+                    <input type="text" class="form-control" id="nome" name="nomeProduto" placeholder="Digite o nome do produto" required>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="quantidade" class="form-label">Quantidade</label>
+                        <input type="number" class="form-control" id="quantidade" name="quantidadeProduto" placeholder="Digite a quantidade" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="preco" class="form-label">Preço</label>
+                        <input type="number" step="0.01" class="form-control" id="preco" name="precoProduto" placeholder="Digite o preço" required>
+                    </div>
+                </div>
+
+                <!-- Campo de CNPJ do Fabricante (sempre visível) -->
+                <div id="cnpjField" class="mb-3">
+                    <label for="cnpj" class="form-label">CNPJ do Fabricante</label>
+                    <input type="text" class="form-control" id="cnpj" name="cnpjFabricante" placeholder="Digite o CNPJ do fabricante" required>
+                </div>
+
+                <!-- Seção para Cadastro de Lote -->
+                <h4 class="mt-4">Cadastro de Lote</h4>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="dataFabricacao" class="form-label">Data de Fabricação</label>
+                        <input type="date" class="form-control" id="dataFabricacao" name="dataFabricacao" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="dataValidade" class="form-label">Data de Validade</label>
+                        <input type="date" class="form-control" id="dataValidade" name="dataValidade" required>
+                    </div>
+                </div>
+
+                <!-- Botão Cadastrar Novo Fabricante -->
+                <div class="form-check mb-3">
+                    <input type="checkbox" class="form-check-input" id="novoFabricanteBtn" onclick="toggleFabricanteFields()">
+                    <label class="form-check-label" for="novoFabricanteBtn">Cadastrar Novo Fabricante</label>
+                </div>
+
+                <!-- Campos para Cadastro de Novo Fabricante (aparecem apenas quando o botão é marcado) -->
+                <div id="fabricanteFields" style="display: none;">
+                    <div class="mb-3">
+                        <label for="nomeFabricante" class="form-label">Nome do Fabricante</label>
+                        <input type="text" class="form-control" id="nomeFabricante" name="nomeFabricante" placeholder="Digite o nome do fabricante">
+                    </div>
+                    <!-- Campo de CNPJ do Novo Fabricante (escondido por padrão) -->
+                    <div id="novoCnpjField" class="mb-3">
+                        <label for="cnpjFabricanteNovo" class="form-label">CNPJ do Novo Fabricante</label>
+                        <input type="text" class="form-control" id="cnpjFabricanteNovo" name="cnpjFabricanteNovo" placeholder="Digite o CNPJ do novo fabricante">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="cep" class="form-label">CEP</label>
+                            <input type="text" class="form-control" id="cep" name="cepFabricante" placeholder="Digite o CEP">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="numero" class="form-label">Número</label>
+                            <input type="text" class="form-control" id="numero" name="numeroCep" placeholder="Digite o número">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botão de envio -->
+                <button type="submit" class="btn btn-primary">Cadastrar Produto e Lote</button>
+            </form>
+
+            <!-- Container para mensagens de erro -->
+            <div id="errorContainer" class="error-message"></div>
+
+            <!-- Container para mostrar a resposta da API -->
+            <div id="responseContainer" class="mt-4">
+                <p id="responseCode"></p>
+                <p id="responseMessage"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
